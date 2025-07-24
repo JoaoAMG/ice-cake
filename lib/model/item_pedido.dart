@@ -1,39 +1,44 @@
-import 'item_carrinho.dart';
+import 'package:doceria_app/model/produto.dart';
 
-class Pedido {
-  final DateTime data;
-  final List<ItemCarrinho> itens;
-  final String formaPagamento;
-  final double total;
-  final String status;
+class ItemPedido {
+  final int? id;
+  final int pedido_id;
+  final int produto_id;
+  final int quantidade;
+  final double preco_unitario;
+  
+  
+  final Produto? produto;
 
-  Pedido({
-    required this.data,
-    required this.itens,
-    required this.formaPagamento,
-    required this.total,
-    this.status = 'Finalizado',
+  ItemPedido({
+    this.id,
+    required this.pedido_id,
+    required this.produto_id,
+    required this.quantidade,
+    required this.preco_unitario,
+    this.produto,
   });
 
-  Map<String, dynamic> toJson() {
+  Map<String, dynamic> toMap() {
     return {
-      'data': data.toIso8601String(),
-      'itens': itens.map((item) => item.toJson()).toList(),
-      'formaPagamento': formaPagamento,
-      'total': total,
-      'status': status,
+      'id': id,
+      'pedido_id': pedido_id,
+      'produto_id': produto_id,
+      'quantidade': quantidade,
+      'preco_unitario': preco_unitario,
     };
   }
 
-  factory Pedido.fromJson(Map<String, dynamic> json) {
-    return Pedido(
-      data: DateTime.parse(json['data']),
-      itens: (json['itens'] as List)
-          .map((itemJson) => ItemCarrinho.fromJson(itemJson))
-          .toList(),
-      formaPagamento: json['formaPagamento'],
-      total: json['total'],
-      status: json['status'],
+  
+  
+  factory ItemPedido.fromMap(Map<String, dynamic> map, [Produto? produto]) {
+    return ItemPedido(
+      id: map['id'],
+      pedido_id: map['pedido_id'],
+      produto_id: map['produto_id'],
+      quantidade: map['quantidade'],
+      preco_unitario: map['preco_unitario'],
+      produto: produto,
     );
   }
 }

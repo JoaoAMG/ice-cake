@@ -1,39 +1,38 @@
 import 'package:doceria_app/model/produto.dart';
 
 class Bolo extends Produto {
-  String categoria;
-  int pedacos;
+  final String categoria;
+  final int pedacos;
 
   Bolo({
-    required String nome,
-    required String descricao,
-    required double preco,
+    super.id, 
+    required super.nome,
+    required super.descricao,
+    required super.preco,
     required this.categoria,
     required this.pedacos,
-  }) : super(nome, descricao, preco, 'Bolo');
+  });
 
-  @override
-  Map<String, dynamic> toJson() {
-    final json = super.toJson();
-    json.addAll({
-      'categoria': categoria,
-      'pedacos': pedacos,
-    });
-    return json;
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'nome': nome,
+      'descricao': descricao,
+      'preco': preco,
+      'tipo_produto': 'BOLO', 
+      'categoria_bolo': categoria,
+      'pedacos_bolo': pedacos,
+    };
   }
 
-  factory Bolo.fromJson(Map<String, dynamic> json) {
+  factory Bolo.fromMap(Map<String, dynamic> map) {
     return Bolo(
-      nome: json['nome'],
-      descricao: json['descricao'],
-      preco: json['preco'],
-      categoria: json['categoria'],
-      pedacos: json['pedacos'],
+      id: map['id'],
+      nome: map['nome'],
+      descricao: map['descricao'],
+      preco: map['preco'],
+      categoria: map['categoria_bolo'],
+      pedacos: map['pedacos_bolo'],
     );
-  }
-
-  @override
-  void exibirDetalhes() {
-    print('Bolo: $nome, Categoria: $categoria, Pedaços: $pedacos');
   }
 }

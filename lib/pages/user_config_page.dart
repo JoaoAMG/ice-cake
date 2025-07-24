@@ -1,39 +1,66 @@
+import 'package:doceria_app/database/dao/dao_usuario.dart';
+import 'package:doceria_app/model/usuario.dart';
+import 'package:doceria_app/providers/user_provider.dart';
 import 'package:doceria_app/widgets/profile_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:provider/provider.dart';
 
-class UserConfigPage extends StatefulWidget {
+class UserConfigPage extends StatelessWidget {
   const UserConfigPage({super.key});
 
-  @override
-  State<UserConfigPage> createState() => _UserConfigPageState();
-}
-
-class _UserConfigPageState extends State<UserConfigPage> {
-  String _userName = 'Nome do Usuário';
-  @override
-  void initState() {
-    super.initState();
-    _loadUserName();
-  }
-
-  Future<void> _loadUserName() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _userName = prefs.getString('user_name') ?? 'Usuário';
-    });
-  }
-
   String _getFirstLetter(String name) {
-    if (name.isEmpty) {
-      return '';
-    }
+    if (name.isEmpty) return '';
     return name[0].toUpperCase();
+  }
+
+  void _showDeleteConfirmationDialog(BuildContext context) {
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final usuario = userProvider.currentUser;
+    final usuarioDAO = UsuarioDAO();
+
+    if (usuario == null || usuario.id == null) return;
+
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('Confirmar Exclusão'),
+          content: const Text('Você tem certeza de que deseja excluir sua conta permanentemente? Esta ação não pode ser desfeita.'),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Cancelar'),
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+              },
+            ),
+            TextButton(
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              child: const Text('Excluir'),
+              onPressed: () async {
+                await usuarioDAO.deleteUser(usuario.id!);
+                userProvider.clearUser();
+                if (dialogContext.mounted) {
+                  Navigator.of(dialogContext).pop();
+                  GoRouter.of(context).go('/autenticacao');
+                }
+              },
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    final userProvider = context.watch<UserProvider>();
+    final usuario = userProvider.currentUser;
+
+    if (usuario == null) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
     return Scaffold(
       body: Column(
         children: [
@@ -41,11 +68,13 @@ class _UserConfigPageState extends State<UserConfigPage> {
             clipBehavior: Clip.none,
             alignment: Alignment.center,
             children: [
-              IconButton(
-                onPressed: () {
-                  GoRouter.of(context).pop();
-                },
-                icon: const Icon(Icons.arrow_back),
+              Positioned(
+                top: 40,
+                left: 10,
+                child: IconButton(
+                  onPressed: () => GoRouter.of(context).pop(),
+                  icon: const Icon(Icons.arrow_back, color: Colors.white),
+                ),
               ),
               ClipPath(
                 clipper: MyCustomClipper(),
@@ -60,9 +89,8 @@ class _UserConfigPageState extends State<UserConfigPage> {
                 child: CircleAvatar(
                   radius: 90,
                   backgroundColor: Colors.deepPurple,
-
                   child: Text(
-                    _getFirstLetter(_userName),
+                    _getFirstLetter(usuario.nome),
                     style: const TextStyle(
                       fontSize: 80,
                       fontWeight: FontWeight.bold,
@@ -74,8 +102,7 @@ class _UserConfigPageState extends State<UserConfigPage> {
             ],
           ),
           const SizedBox(height: 80),
-
-          Text(_userName, style: const TextStyle(fontSize: 50)),
+          Text(usuario.nome, style: const TextStyle(fontSize: 50)),
           Expanded(
             child: ListView(
               padding: EdgeInsets.zero,
@@ -83,29 +110,40 @@ class _UserConfigPageState extends State<UserConfigPage> {
                 ProfileMenuItem(
                   icon: Icons.person,
                   text: 'Meus dados',
-                  onTap: () {
-                    GoRouter.of(context).push('/user_config/meus_dados');
-                  },
+                  onTap: () => GoRouter.of(context).push('/user_config/meus_dados'),
                 ),
-                ProfileMenuItem(
-                  icon: Icons.location_on,
-                  text: 'Meu endereço',
-                  onTap: () {
-                    GoRouter.of(context).push('/user_config/meus_enderecos');
-                  },
-                ),
-                ProfileMenuItem(
-                  icon: Icons.history,
-                  text: 'Minhas compras',
-                  onTap: () {
-                    GoRouter.of(context).push('/user_config/minhas_compras');
-                  },
-                ),
+                
+                
+                
+                
+                if (usuario is UsuarioCliente)
+                  ProfileMenuItem(
+                    icon: Icons.location_on,
+                    text: 'Meu endereço',
+                    onTap: () => GoRouter.of(context).push('/user_config/meus_enderecos'),
+                  ),
+                
+                
+                if (usuario is UsuarioCliente)
+                  ProfileMenuItem(
+                    icon: Icons.history,
+                    text: 'Minhas compras',
+                    onTap: () => GoRouter.of(context).push('/user_config/minhas_compras'),
+                  ),
+                
                 ProfileMenuItem(
                   icon: Icons.login_outlined,
                   text: 'Sair',
                   onTap: () {
+                    userProvider.clearUser();
                     GoRouter.of(context).go('/autenticacao');
+                  },
+                ),
+                ProfileMenuItem(
+                  icon: Icons.delete_forever,
+                  text: 'Excluir Conta',
+                  onTap: () {
+                    _showDeleteConfirmationDialog(context);
                   },
                 ),
               ],

@@ -43,7 +43,7 @@ class Apresentacao extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 30),
                 child: Text(
-                  'Seja bem-vindo à doceria_app – aqui o sabor é especial como você.',
+                  'Seja bem-vindo à Ice&Cake – aqui o sabor é especial como você.',
                   style: TextStyle(
                     color: Color(0xFF750073),
                     fontSize: 30,

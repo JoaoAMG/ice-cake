@@ -2,10 +2,15 @@ import 'package:carousel_slider/carousel_slider.dart';
 import 'package:flutter/material.dart';
 
 class CarrosselWidget extends StatelessWidget {
-  // Adiciona o CarouselController como um parâmetro obrigatório
-  final CarouselController carouselController;
+  
+  final CarouselSliderController carouselController;
+  final Function(int) onItemTapped;
 
-  const CarrosselWidget({super.key, required this.carouselController});
+  const CarrosselWidget({
+    super.key,
+    required this.carouselController,
+    required this.onItemTapped,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -22,6 +27,8 @@ class CarrosselWidget extends StatelessWidget {
     ];
 
     return CarouselSlider(
+      
+      carouselController: carouselController,
       options: CarouselOptions(
         height: 200.0,
         autoPlay: true,
@@ -32,33 +39,35 @@ class CarrosselWidget extends StatelessWidget {
         autoPlayAnimationDuration: const Duration(milliseconds: 800),
         autoPlayCurve: Curves.fastOutSlowIn,
       ),
-      items:
-          imgList
-              .map(
-                (item) => Center(
-                  child: ClipRRect(
-                    borderRadius: const BorderRadius.all(Radius.circular(15.0)),
-                    child: Image.network(
-                      item,
-                      fit: BoxFit.cover,
-                      width: 1000,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Container(
-                          color: Colors.grey[300],
-                          child: Center(
-                            child: Icon(
-                              Icons.image_not_supported,
-                              color: Colors.grey[600],
-                              size: 50,
-                            ),
-                          ),
-                        );
-                      },
+      items: imgList.asMap().entries.map((entry) {
+        int index = entry.key;
+        String item = entry.value;
+        return GestureDetector(
+          onTap: () => onItemTapped(index),
+          child: Center(
+            child: ClipRRect(
+              borderRadius: const BorderRadius.all(Radius.circular(15.0)),
+              child: Image.network(
+                item,
+                fit: BoxFit.cover,
+                width: 1000,
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    color: Colors.grey[300],
+                    child: Center(
+                      child: Icon(
+                        Icons.image_not_supported,
+                        color: Colors.grey[600],
+                        size: 50,
+                      ),
                     ),
-                  ),
-                ),
-              )
-              .toList(),
+                  );
+                },
+              ),
+            ),
+          ),
+        );
+      }).toList(),
     );
   }
 }

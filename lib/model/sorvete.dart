@@ -1,39 +1,40 @@
 import 'package:doceria_app/model/produto.dart';
 
 class Sorvete extends Produto {
-  String sabor;
-  String mlTamanho;
+  final String sabor;
+  final String mlTamanho;
 
   Sorvete({
-    required String nome,
-    required String descricao,
-    required double preco,
+    super.id, 
+    required super.nome,
+    required super.descricao,
+    required super.preco,
     required this.sabor,
     required this.mlTamanho,
-  }) : super(nome, descricao, preco, 'Sorvete');
+  });
 
-  @override
-  Map<String, dynamic> toJson() {
-    final json = super.toJson();
-    json.addAll({
-      'sabor': sabor,
-      'mlTamanho': mlTamanho,
-    });
-    return json;
+  
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'nome': nome,
+      'descricao': descricao,
+      'preco': preco,
+      'tipo_produto': 'SORVETE', 
+      'sabor_sorvete': sabor,
+      'ml_tamanho_sorvete': mlTamanho,
+    };
   }
 
-  factory Sorvete.fromJson(Map<String, dynamic> json) {
+  
+  factory Sorvete.fromMap(Map<String, dynamic> map) {
     return Sorvete(
-      nome: json['nome'],
-      descricao: json['descricao'],
-      preco: json['preco'],
-      sabor: json['sabor'],
-      mlTamanho: json['mlTamanho'],
+      id: map['id'],
+      nome: map['nome'],
+      descricao: map['descricao'],
+      preco: map['preco'],
+      sabor: map['sabor_sorvete'],
+      mlTamanho: map['ml_tamanho_sorvete'],
     );
-  }
-
-  @override
-  void exibirDetalhes() {
-    print('Sorvete: $nome, Sabor: $sabor, Tamanho: $mlTamanho');
   }
 }

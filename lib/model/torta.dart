@@ -1,39 +1,40 @@
 import 'package:doceria_app/model/produto.dart';
 
 class Torta extends Produto {
-  String categoria;
-  double peso;
+  final String categoria;
+  final double peso;
 
   Torta({
-    required String nome,
-    required String descricao,
-    required double preco,
+    super.id, 
+    required super.nome,
+    required super.descricao,
+    required super.preco,
     required this.categoria,
     required this.peso,
-  }) : super(nome, descricao, preco, 'Torta');
+  });
 
-  @override
-  Map<String, dynamic> toJson() {
-    final json = super.toJson();
-    json.addAll({
-      'categoria': categoria,
-      'peso': peso,
-    });
-    return json;
+  
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'nome': nome,
+      'descricao': descricao,
+      'preco': preco,
+      'tipo_produto': 'TORTA', 
+      'categoria_torta': categoria,
+      'peso_torta': peso,
+    };
   }
 
-  factory Torta.fromJson(Map<String, dynamic> json) {
+  
+  factory Torta.fromMap(Map<String, dynamic> map) {
     return Torta(
-      nome: json['nome'],
-      descricao: json['descricao'],
-      preco: json['preco'],
-      categoria: json['categoria'],
-      peso: json['peso'],
+      id: map['id'],
+      nome: map['nome'],
+      descricao: map['descricao'],
+      preco: map['preco'],
+      categoria: map['categoria_torta'],
+      peso: map['peso_torta'],
     );
-  }
-
-  @override
-  void exibirDetalhes() {
-    print('Torta: $nome, Categoria: $categoria, Peso: ${peso}kg');
   }
 }

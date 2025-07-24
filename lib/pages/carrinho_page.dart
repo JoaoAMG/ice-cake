@@ -1,9 +1,12 @@
-import 'dart:convert';
+import 'package:doceria_app/database/dao/dao_endereco.dart';
+import 'package:doceria_app/database/dao/dao_pedido.dart';
 import 'package:doceria_app/model/item_carrinho.dart';
 import 'package:doceria_app/model/item_pedido.dart';
+import 'package:doceria_app/model/pedido.dart';
+import 'package:doceria_app/providers/user_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:provider/provider.dart';
 
 class CarrinhoPage extends StatefulWidget {
   final List<ItemCarrinho> carrinho;
@@ -14,6 +17,10 @@ class CarrinhoPage extends StatefulWidget {
 }
 
 class _CarrinhoState extends State<CarrinhoPage> {
+  
+  final PedidoDAO pedidoDAO = PedidoDAO();
+  final EnderecoDAO enderecoDAO = EnderecoDAO();
+
   String _formaPagamento = 'Cartão de Crédito';
   double total = 0;
 
@@ -35,46 +42,58 @@ class _CarrinhoState extends State<CarrinhoPage> {
     });
   }
 
-  void _finalizarPedido() async {
-    final prefs = await SharedPreferences.getInstance();
-    final cepSalvo = prefs.getString('address_cep') ?? '';
+  
+  Future<void> _finalizarPedido() async {
+    final usuario = context.read<UserProvider>().currentUser;
+
+    if (usuario == null || usuario.id == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        backgroundColor: Colors.redAccent,
+        content: Text("Sessão inválida. Faça login novamente."),
+      ));
+      GoRouter.of(context).go('/autenticacao');
+      return;
+    }
+
+    final enderecoSalvo = await enderecoDAO.getEnderecoByUsuarioId(usuario.id!);
 
     if (!mounted) return;
 
-    if (cepSalvo.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          backgroundColor: Colors.orange,
-          content: Text("Cadastre um endereço antes de finalizar o pedido."),
-          duration: Duration(seconds: 3),
-        ),
-      );
+    if (enderecoSalvo == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        backgroundColor: Colors.orange,
+        content: Text("Cadastre um endereço antes de finalizar o pedido."),
+      ));
+      
       context.push('/user_config/meus_enderecos');
       return;
     }
 
     if (widget.carrinho.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          backgroundColor: Colors.redAccent,
-          content: Text(
-            "Seu carrinho está vazio. Adicione itens para finalizar o pedido.",
-          ),
-        ),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        backgroundColor: Colors.redAccent,
+        content: Text("Seu carrinho está vazio."),
+      ));
       return;
     }
 
+    final itensPedido = widget.carrinho.map((itemCarrinho) {
+      return ItemPedido(
+        pedido_id: 0,
+        produto_id: itemCarrinho.produto.id!,
+        quantidade: itemCarrinho.quantidade,
+        preco_unitario: itemCarrinho.produto.preco,
+      );
+    }).toList();
+
     final pedido = Pedido(
-      data: DateTime.now(),
-      itens: List.from(widget.carrinho),
-      formaPagamento: _formaPagamento,
-      total: total,
+      usuario_id: usuario.id!,
+      data_pedido: DateTime.now(),
+      valor_total: total,
+      itens: itensPedido,
     );
 
-    final pedidosSalvos = prefs.getStringList('pedidos_historico') ?? [];
-    pedidosSalvos.add(jsonEncode(pedido.toJson()));
-    await prefs.setStringList('pedidos_historico', pedidosSalvos);
+    await pedidoDAO.savePedido(pedido);
 
     setState(() {
       widget.carrinho.clear();
@@ -83,13 +102,15 @@ class _CarrinhoState extends State<CarrinhoPage> {
 
     if (!mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Pedido finalizado com sucesso!")),
-    );
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+      backgroundColor: Colors.green,
+      content: Text("Pedido finalizado com sucesso!"),
+    ));
   }
 
   @override
   Widget build(BuildContext context) {
+    
     return Scaffold(
       appBar: AppBar(
         title: const Text('Carrinho'),
@@ -112,9 +133,15 @@ class _CarrinhoState extends State<CarrinhoPage> {
                     itemBuilder: (context, index) {
                       final item = widget.carrinho[index];
                       return ListTile(
-                        title: Text(item.produto.nome),
+                        
+                        title: Text(
+                          item.produto.nome,
+                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        ),
                         subtitle: Text(
-                            '${item.quantidade}x R\$ ${item.produto.preco.toStringAsFixed(2)}'),
+                          '${item.quantidade}x R\$ ${item.produto.preco.toStringAsFixed(2)}',
+                          style: const TextStyle(fontSize: 16),
+                        ),
                         trailing: IconButton(
                           icon: const Icon(Icons.remove_circle_outline),
                           onPressed: () => _removerItem(index),

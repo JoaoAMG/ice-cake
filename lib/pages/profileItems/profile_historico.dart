@@ -1,19 +1,21 @@
-import 'dart:convert';
-import 'package:doceria_app/model/item_pedido.dart';
+import 'package:doceria_app/database/dao/dao_pedido.dart';
+import 'package:doceria_app/model/pedido.dart';
+import 'package:doceria_app/providers/user_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:provider/provider.dart';
 
-class HistoricoPedidosPage extends StatefulWidget {
-  const HistoricoPedidosPage({super.key});
+class ProfileHistoricoPage extends StatefulWidget {
+  
+  const ProfileHistoricoPage({super.key});
 
   @override
-  State<HistoricoPedidosPage> createState() => _HistoricoPedidosPageState();
+  State<ProfileHistoricoPage> createState() => _ProfileHistoricoPageState();
 }
 
-class _HistoricoPedidosPageState extends State<HistoricoPedidosPage> {
-  List<Pedido> _pedidos = [];
-  bool _isLoading = true;
+class _ProfileHistoricoPageState extends State<ProfileHistoricoPage> {
+  final PedidoDAO pedidoDAO = PedidoDAO();
+  late Future<List<Pedido>> _pedidosFuture;
 
   @override
   void initState() {
@@ -21,17 +23,16 @@ class _HistoricoPedidosPageState extends State<HistoricoPedidosPage> {
     _loadPedidos();
   }
 
-  Future<void> _loadPedidos() async {
-    final prefs = await SharedPreferences.getInstance();
-    final pedidosStringList = prefs.getStringList('pedidos_historico') ?? [];
-    setState(() {
-      _pedidos = pedidosStringList
-          .map((pedidoString) => Pedido.fromJson(jsonDecode(pedidoString)))
-          .toList()
-          .reversed 
-          .toList();
-      _isLoading = false;
-    });
+  void _loadPedidos() {
+    
+    final usuario = context.read<UserProvider>().currentUser;
+    if (usuario != null && usuario.id != null) {
+      
+      _pedidosFuture = pedidoDAO.getPedidosByUsuarioId(usuario.id!);
+    } else {
+      
+      _pedidosFuture = Future.value([]);
+    }
   }
 
   @override
@@ -39,84 +40,97 @@ class _HistoricoPedidosPageState extends State<HistoricoPedidosPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Meus Pedidos'),
-        backgroundColor: Color(0xFFFAD6FA),
+        backgroundColor: const Color(0xFFFAD6FA),
         foregroundColor: Colors.black,
         centerTitle: true,
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _pedidos.isEmpty
-              ? const Center(
-                  child: Text(
-                    'Nenhum pedido feito ainda.',
-                    style: TextStyle(fontSize: 30),
+      body: FutureBuilder<List<Pedido>>(
+        future: _pedidosFuture,
+        builder: (context, snapshot) {
+          
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          
+          if (snapshot.hasError) {
+            return Center(child: Text('Erro ao carregar o histórico: ${snapshot.error}'));
+          }
+
+          
+          if (snapshot.hasData) {
+            final pedidos = snapshot.data!;
+
+            if (pedidos.isEmpty) {
+              return const Center(
+                child: Text(
+                  'Nenhum pedido feito ainda.',
+                  style: TextStyle(fontSize: 30),
+                ),
+              );
+            }
+
+            
+            return ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: pedidos.length,
+              itemBuilder: (context, index) {
+                final pedido = pedidos[index];
+                final dataFormatada = DateFormat('dd/MM/yyyy – HH:mm').format(pedido.data_pedido);
+
+                return Card(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(15),
                   ),
-                )
-              : ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: _pedidos.length,
-                  itemBuilder: (context, index) {
-                    final pedido = _pedidos[index];
-                    final dataFormatada = DateFormat(
-                      'dd/MM/yyyy – HH:mm',
-                    ).format(pedido.data);
-                    return Card(
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(15),
-                      ),
-                      elevation: 3,
-                      margin: const EdgeInsets.only(bottom: 16),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Pedido em $dataFormatada',
-                              style: const TextStyle(
-                                fontSize: 30,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const Divider(height: 20),
-                            ...pedido.itens.map(
-                              (item) => Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 2.0),
-                                child: Text(
-                                  '${item.quantidade}x ${item.produto.nome}',
-                                  style: const TextStyle(fontSize: 25),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Pagamento: ${pedido.formaPagamento}',
+                  elevation: 3,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Pedido em $dataFormatada',
+                          style: const TextStyle(
+                            fontSize: 30,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const Divider(height: 20),
+                        
+                        ...pedido.itens.map(
+                          (item) => Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 2.0),
+                            child: Text(
+                              '${item.quantidade}x ${item.produto?.nome ?? "Produto indisponível"}',
                               style: const TextStyle(fontSize: 25),
                             ),
-                            Text(
-                              'Total: R\$ ${pedido.total.toStringAsFixed(2)}',
-                              style: const TextStyle(
-                                fontSize: 30,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFFB100A5),
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Status: ${pedido.status}',
-                              style: TextStyle(
-                                fontSize: 25,
-                                color: pedido.status == 'Finalizado'
-                                    ? Colors.green
-                                    : Colors.orange,
-                              ),
-                            ),
-                          ],
+                          ),
                         ),
-                      ),
-                    );
-                  },
-                ),
+                        const SizedBox(height: 8),
+                        
+                        
+                        
+                        Text(
+                          'Total: R\$ ${pedido.valor_total.toStringAsFixed(2)}',
+                          style: const TextStyle(
+                            fontSize: 30,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFFB100A5),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            );
+          }
+
+          
+          return const Center(child: Text('Nenhum histórico para exibir.'));
+        },
+      ),
     );
   }
 }

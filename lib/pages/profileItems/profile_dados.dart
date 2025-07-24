@@ -1,28 +1,32 @@
+import 'package:doceria_app/database/dao/dao_usuario.dart';
+import 'package:doceria_app/model/usuario.dart';
+import 'package:doceria_app/providers/user_provider.dart';
 import 'package:doceria_app/widgets/input_decoration.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:provider/provider.dart';
 
-class MeusDados extends StatefulWidget {
-  const MeusDados({super.key});
+class ProfileDadosPage extends StatefulWidget {
+  const ProfileDadosPage({super.key});
 
   @override
-  State<MeusDados> createState() => _MeusDadosState();
+  State<ProfileDadosPage> createState() => _ProfileDadosPageState();
 }
 
-class _MeusDadosState extends State<MeusDados> {
+class _ProfileDadosPageState extends State<ProfileDadosPage> {
   final _formkey = GlobalKey<FormState>();
-
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _cpfController = TextEditingController();
   final _telefoneController = TextEditingController();
 
+  final UsuarioDAO usuarioDAO = UsuarioDAO();
   bool _isEditing = false;
 
   @override
   void initState() {
     super.initState();
+    
     _loadUserData();
   }
 
@@ -35,26 +39,44 @@ class _MeusDadosState extends State<MeusDados> {
     super.dispose();
   }
 
-  Future<void> _loadUserData() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _nameController.text = prefs.getString('user_name') ?? '';
-      _emailController.text = prefs.getString('user_email') ?? '';
-      _cpfController.text = prefs.getString('user_cpf') ?? '';
-      _telefoneController.text = prefs.getString('user_phone') ?? '';
-    });
+  
+  void _loadUserData() {
+    
+    final usuario = context.read<UserProvider>().currentUser;
+    if (usuario != null) {
+      setState(() {
+        _nameController.text = usuario.nome;
+        _emailController.text = usuario.email;
+        _cpfController.text = usuario.cpf;
+        _telefoneController.text = usuario.telefone;
+      });
+    }
   }
 
+  
   Future<void> _salvarDados() async {
     if (_formkey.currentState!.validate()) {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('user_name', _nameController.text);
-      await prefs.setString('user_email', _emailController.text);
-      await prefs.setString('user_cpf', _cpfController.text);
-      await prefs.setString('user_phone', _telefoneController.text);
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      final usuarioAtual = userProvider.currentUser;
+
+      if (usuarioAtual == null) return; 
+
+      final usuarioAtualizado = UsuarioCliente(
+        id: usuarioAtual.id, 
+        nome: _nameController.text,
+        email: _emailController.text,
+        cpf: _cpfController.text,
+        telefone: _telefoneController.text,
+        senha: usuarioAtual.senha, 
+      );
+
+      
+      await usuarioDAO.updateUser(usuarioAtualizado);
+
+      
+      userProvider.setUser(usuarioAtualizado);
 
       if (!mounted) return;
-
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           backgroundColor: Colors.green,
@@ -62,6 +84,7 @@ class _MeusDadosState extends State<MeusDados> {
         ),
       );
 
+      
       setState(() {
         _isEditing = false;
       });
@@ -70,6 +93,7 @@ class _MeusDadosState extends State<MeusDados> {
 
   @override
   Widget build(BuildContext context) {
+    
     return Scaffold(
       appBar: AppBar(
         title: const Text('Meus Dados'),
@@ -109,10 +133,7 @@ class _MeusDadosState extends State<MeusDados> {
                   keyboardType: TextInputType.emailAddress,
                   readOnly: !_isEditing,
                   validator: (String? value) {
-                    if (value == null || value.isEmpty) {
-                      return 'O email não pode ser vazio';
-                    }
-                    if (!value.contains('@') || !value.contains('.')) {
+                    if (value == null || value.isEmpty || !value.contains('@') || !value.contains('.')) {
                       return 'O email não é válido';
                     }
                     return null;
@@ -127,10 +148,7 @@ class _MeusDadosState extends State<MeusDados> {
                   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                   readOnly: !_isEditing,
                   validator: (String? value) {
-                    if (value == null || value.isEmpty) {
-                      return 'O CPF não pode ser vazio';
-                    }
-                    if (value.length != 11) {
+                    if (value == null || value.isEmpty || value.length != 11) {
                       return 'O CPF deve conter 11 dígitos';
                     }
                     return null;
@@ -145,10 +163,7 @@ class _MeusDadosState extends State<MeusDados> {
                   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                   readOnly: !_isEditing,
                   validator: (String? value) {
-                    if (value == null || value.isEmpty) {
-                      return 'O telefone não pode ser vazio';
-                    }
-                    if (value.length < 10 || value.length > 11) {
+                    if (value == null || value.isEmpty || value.length < 10 || value.length > 11) {
                       return 'O telefone deve ter 10 ou 11 dígitos (com DDD)';
                     }
                     return null;

@@ -1,9 +1,12 @@
+import 'package:doceria_app/database/dao/dao_usuario.dart';
+import 'package:doceria_app/model/usuario.dart';
+import 'package:doceria_app/providers/user_provider.dart';
 import 'package:doceria_app/widgets/button_widget.dart';
 import 'package:doceria_app/widgets/input_decoration.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:provider/provider.dart';
 
 class AutenticacaoPage extends StatefulWidget {
   const AutenticacaoPage({super.key});
@@ -16,6 +19,9 @@ class _AutenticacaoPageState extends State<AutenticacaoPage> {
   bool isLogin = true;
   bool isChecked = false;
 
+  
+  String _tipoUsuarioSelecionado = 'Cliente';
+
   final _formkey = GlobalKey<FormState>();
 
   final _nameController = TextEditingController();
@@ -24,6 +30,8 @@ class _AutenticacaoPageState extends State<AutenticacaoPage> {
   final _confirmPasswordController = TextEditingController();
   final _cpfController = TextEditingController();
   final _telefoneController = TextEditingController();
+
+  final usuarioDAO = UsuarioDAO();
 
   @override
   void dispose() {
@@ -36,6 +44,7 @@ class _AutenticacaoPageState extends State<AutenticacaoPage> {
     super.dispose();
   }
 
+  
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -65,13 +74,28 @@ class _AutenticacaoPageState extends State<AutenticacaoPage> {
                         visible: !isLogin,
                         child: Column(
                           children: [
+                            
+                            DropdownButtonFormField<String>(
+                              value: _tipoUsuarioSelecionado,
+                              decoration: getInputDecoration('Tipo de Usuário', Icons.account_box),
+                              items: <String>['Cliente', 'Administrador']
+                                  .map<DropdownMenuItem<String>>((String value) {
+                                return DropdownMenuItem<String>(
+                                  value: value,
+                                  child: Text(value, style: const TextStyle(fontSize: 25)),
+                                );
+                              }).toList(),
+                              onChanged: (String? newValue) {
+                                setState(() {
+                                  _tipoUsuarioSelecionado = newValue!;
+                                });
+                              },
+                            ),
+                            const SizedBox(height: 20),
                             TextFormField(
                               style: const TextStyle(fontSize: 25),
                               controller: _nameController,
-                              decoration: getInputDecoration(
-                                'Nome',
-                                Icons.person,
-                              ),
+                              decoration: getInputDecoration('Nome', Icons.person),
                               validator: (String? value) {
                                 if (value == null || value.isEmpty) {
                                   return 'O nome não pode ser vazio';
@@ -83,14 +107,9 @@ class _AutenticacaoPageState extends State<AutenticacaoPage> {
                             TextFormField(
                               style: const TextStyle(fontSize: 25),
                               controller: _cpfController,
-                              decoration: getInputDecoration(
-                                'CPF',
-                                Icons.badge_outlined,
-                              ),
+                              decoration: getInputDecoration('CPF', Icons.badge_outlined),
                               keyboardType: TextInputType.number,
-                              inputFormatters: [
-                                FilteringTextInputFormatter.digitsOnly,
-                              ],
+                              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                               validator: (String? value) {
                                 if (value == null || value.isEmpty) {
                                   return 'O CPF não pode ser vazio';
@@ -105,14 +124,9 @@ class _AutenticacaoPageState extends State<AutenticacaoPage> {
                             TextFormField(
                               style: const TextStyle(fontSize: 25),
                               controller: _telefoneController,
-                              decoration: getInputDecoration(
-                                'Telefone',
-                                Icons.phone,
-                              ),
+                              decoration: getInputDecoration('Telefone', Icons.phone),
                               keyboardType: TextInputType.phone,
-                              inputFormatters: [
-                                FilteringTextInputFormatter.digitsOnly,
-                              ],
+                              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                               validator: (String? value) {
                                 if (value == null || value.isEmpty) {
                                   return 'O telefone não pode ser vazio';
@@ -132,16 +146,12 @@ class _AutenticacaoPageState extends State<AutenticacaoPage> {
                         controller: _emailController,
                         decoration: getInputDecoration('Email', Icons.email),
                         validator: (String? value) {
-                          if (value == null || value.isEmpty) {
-                            return 'O email não pode ser vazio';
-                          }
-                          if (!value.contains('@') || !value.contains('.')) {
+                          if (value == null || value.isEmpty || !value.contains('@') || !value.contains('.')) {
                             return 'O email não é válido';
                           }
                           return null;
                         },
                       ),
-
                       const SizedBox(height: 20),
                       TextFormField(
                         style: const TextStyle(fontSize: 25),
@@ -149,10 +159,7 @@ class _AutenticacaoPageState extends State<AutenticacaoPage> {
                         decoration: getInputDecoration('Senha', Icons.lock),
                         obscureText: true,
                         validator: (String? value) {
-                          if (value == null || value.isEmpty) {
-                            return 'A senha não pode ser vazia';
-                          }
-                          if (value.length < 7) {
+                          if (value == null || value.isEmpty || value.length < 7) {
                             return 'A senha deve ter no mínimo 7 caracteres';
                           }
                           return null;
@@ -166,15 +173,9 @@ class _AutenticacaoPageState extends State<AutenticacaoPage> {
                             TextFormField(
                               style: const TextStyle(fontSize: 25),
                               controller: _confirmPasswordController,
-                              decoration: getInputDecoration(
-                                'Confirmar Senha',
-                                Icons.lock,
-                              ),
+                              decoration: getInputDecoration('Confirmar Senha', Icons.lock),
                               obscureText: true,
                               validator: (String? value) {
-                                if (value == null || value.isEmpty) {
-                                  return 'Confirme a senha';
-                                }
                                 if (value != _passwordController.text) {
                                   return 'As senhas não coincidem';
                                 }
@@ -201,12 +202,7 @@ class _AutenticacaoPageState extends State<AutenticacaoPage> {
                                       fontSize: 25,
                                       fontWeight: FontWeight.bold,
                                       decoration: TextDecoration.underline,
-                                      decorationColor: Color.fromARGB(
-                                        255,
-                                        86,
-                                        38,
-                                        199,
-                                      ),
+                                      decorationColor: Color.fromARGB(255, 86, 38, 199),
                                     ),
                                   ),
                                 ),
@@ -218,11 +214,8 @@ class _AutenticacaoPageState extends State<AutenticacaoPage> {
                       const SizedBox(height: 50),
                       ButtonPadrao(
                         text: (isLogin ? 'Login' : 'Cadastrar'),
-                        onPressed: () {
-                          buttonPrincipal();
-                        },
+                        onPressed: buttonPrincipal,
                       ),
-
                       const SizedBox(height: 20),
                       ButtonAlternativo(
                         onPressed: () {
@@ -242,70 +235,90 @@ class _AutenticacaoPageState extends State<AutenticacaoPage> {
       ),
     );
   }
-
+  
   Future<void> buttonPrincipal() async {
     if (!_formkey.currentState!.validate()) {
       return;
     }
-
-    final prefs = await SharedPreferences.getInstance();
+    
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
 
     if (isLogin) {
-      final savedEmail = prefs.getString('user_email');
-      final savedPassword = prefs.getString('user_password');
-      final enteredEmail = _emailController.text;
-      final enteredPassword = _passwordController.text;
+      
+      final usuarioSalvo = await usuarioDAO.getUserByEmail(_emailController.text);
 
-      if (savedEmail == null || savedEmail.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            backgroundColor: Colors.redAccent,
-            content: Text('Nenhum usuário registrado. Por favor, cadastre-se.'),
-          ),
-        );
+      if (usuarioSalvo == null || usuarioSalvo.senha != _passwordController.text) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          backgroundColor: Colors.redAccent,
+          content: Text('E-mail ou senha incorretos.'),
+        ));
         return;
       }
+      
+      userProvider.setUser(usuarioSalvo);
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        backgroundColor: Colors.green,
+        content: Text('Login realizado com sucesso!'),
+      ));
 
-      if (enteredEmail == savedEmail && enteredPassword == savedPassword) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            backgroundColor: Colors.green,
-            content: Text('Login realizado com sucesso!'),
-          ),
-        );
-        GoRouter.of(context).go('/home');
+      
+      if (usuarioSalvo is UsuarioAdministrador) {
+        GoRouter.of(context).go('/admin/home');
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            backgroundColor: Colors.redAccent,
-            content: Text('E-mail ou senha incorretos.'),
-          ),
-        );
+        GoRouter.of(context).go('/home');
       }
+
     } else {
+      
       if (!isChecked) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            backgroundColor: Colors.redAccent,
-            content: Text('Você precisa aceitar os termos para continuar.'),
-          ),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          backgroundColor: Colors.redAccent,
+          content: Text('Você precisa aceitar os termos para continuar.'),
+        ));
         return;
       }
+      
+      final emailExists = await usuarioDAO.getUserByEmail(_emailController.text);
+      if (emailExists != null) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            backgroundColor: Colors.redAccent,
+            content: Text('Este e-mail já está cadastrado.'),
+          ));
+          return;
+      }
+      
+      Usuario novoUsuario;
+      if (_tipoUsuarioSelecionado == 'Cliente') {
+        novoUsuario = UsuarioCliente(
+          nome: _nameController.text,
+          email: _emailController.text,
+          senha: _passwordController.text,
+          cpf: _cpfController.text,
+          telefone: _telefoneController.text,
+        );
+      } else {
+        novoUsuario = UsuarioAdministrador(
+          nome: _nameController.text,
+          email: _emailController.text,
+          senha: _passwordController.text,
+          cpf: _cpfController.text,
+          telefone: _telefoneController.text,
+        );
+      }
+      
+      final usuarioSalvoComId = await usuarioDAO.saveUser(novoUsuario);
+      userProvider.setUser(usuarioSalvoComId);
 
-      await prefs.setString('user_name', _nameController.text);
-      await prefs.setString('user_email', _emailController.text);
-      await prefs.setString('user_password', _passwordController.text);
-      await prefs.setString('user_cpf', _cpfController.text);
-      await prefs.setString('user_phone', _telefoneController.text);
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          backgroundColor: Colors.green,
-          content: Text('Cadastro realizado com sucesso!'),
-        ),
-      );
-      GoRouter.of(context).go('/home');
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        backgroundColor: Colors.green,
+        content: Text('Cadastro realizado com sucesso!'),
+      ));
+      
+      if (usuarioSalvoComId is UsuarioAdministrador) {
+        GoRouter.of(context).go('/admin/home');
+      } else {
+        GoRouter.of(context).go('/home');
+      }
     }
   }
 }
